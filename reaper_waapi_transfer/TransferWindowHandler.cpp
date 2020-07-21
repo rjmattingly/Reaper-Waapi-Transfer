@@ -677,7 +677,7 @@ static void DoMenuBar(WAAPITransfer& transfer)
 
 	if (transfer.m_connectionStatus)
 	{
-		ImGui::Text("Connected: %s", transfer.m_connectedWwiseVersion.c_str());
+		ImGui::Text("Connected: %s : %s", transfer.m_connectedWwiseProjectName.c_str(), transfer.m_connectedWwiseVersion.c_str());
 	}
 	else
 	{

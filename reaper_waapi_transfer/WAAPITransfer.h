@@ -197,4 +197,5 @@ public:
 	bool m_connectionStatus = false;
 
 	std::string m_connectedWwiseVersion;
+	std::string m_connectedWwiseProjectName;
 };

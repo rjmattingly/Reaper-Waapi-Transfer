@@ -144,6 +144,8 @@ bool WAAPITransfer::Connect()
 {
     using namespace AK::WwiseAuthoringAPI;
     AkJson wwiseInfo;
+	AkJson projectInfo;
+
     bool success = false;
 
     if (success = m_client.Connect("127.0.0.1", g_Waapi_Port))
@@ -159,6 +161,22 @@ bool WAAPITransfer::Connect()
             status << "Connected on port " + std::to_string(g_Waapi_Port) + ": ";
 			m_connectedWwiseVersion = wwiseInfo["version"]["displayName"].GetVariant().GetString();
         }
+
+		AkJson args(AkJson::Map{
+			{"from", AkJson::Map{{
+			"ofType", AkJson::Array{
+			AkVariant("Project"),
+			} } } } });
+		AkJson options(AkJson::Map{
+			{"return", AkJson::Array{
+			AkVariant("name"),
+			} } } ); 
+		if (success &= m_client.Call(ak::wwise::core::object::get,
+									 args, options, projectInfo))
+		{
+			m_connectedWwiseProjectName = projectInfo.GetMap()["return"][0]["name"].GetVariant().GetString();
+		}
+							
     }
 
 	m_connectionStatus = success;
