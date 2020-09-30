@@ -3,6 +3,9 @@
 #include "WAAPIHelpers.h"
 #include "Reaper_WAAPI_Transfer.h"
 
+#include <rapidjson\writer.h>
+#include <rapidjson\document.h>
+
 #ifdef AK_ENABLE_ASSERTS
 void ReaperWAAPITransferAssertHook
 (
@@ -199,4 +202,32 @@ bool WaapiImportItems(const AK::WwiseAuthoringAPI::AkJson::Array &items,
     AkJson result;
 
     return client.Call(ak::wwise::core::audio::import, createArgs, AkJson(AkJson::Map()), result, -1);
+}
+
+class StringToValue
+{
+public:
+
+	static rapidjson::Value Convert(const std::string& in_val, rapidjson::MemoryPoolAllocator<>& in_allocator)
+	{
+		return rapidjson::Value(in_val.c_str(), static_cast<rapidjson::SizeType>(in_val.size()), in_allocator);
+	}
+};
+
+
+void PrintAKJson(AK::WwiseAuthoringAPI::AkJson const& _json)
+{
+	using namespace AK::WwiseAuthoringAPI;
+
+	rapidjson::Document doc;
+	AkJson::ToRapidJson<rapidjson::Value, rapidjson::MemoryPoolAllocator<>, rapidjson::SizeType, StringToValue>(_json, doc, doc.GetAllocator());
+
+	rapidjson::StringBuffer buffer;
+	buffer.Clear();
+
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	doc.Accept(writer);
+
+	OutputDebugStringA(buffer.GetString());
+	OutputDebugStringA("\n");
 }
