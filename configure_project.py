@@ -37,7 +37,7 @@ def main():
     # Find Wwise SDK dir.
     argparser = argparse.ArgumentParser(description='Create solution for reaper-waapi-transfer')
     argparser.add_argument('-wwise_sdk_root', required=False, help='Path to Wwise sdk (default: environment var {WWISESDK})')
-    argparser.add_argument('-cmake_generator', help='CMake Generator (default: Visual Studio 15 2017).', default='Visual Studio 15 2017')
+    argparser.add_argument('-cmake_generator', help='CMake Generator (default: Visual Studio 16 2019).', default='Visual Studio 16 2019')
     argparser.add_argument('-cmake_generator_platform', help='CMake generator platform (default: x64).', default='x64')
     argparser.add_argument('-build_dir', help='Path to generate CMake solution into (default: build/).', default='build')
 
