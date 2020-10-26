@@ -15,10 +15,9 @@ using int16 = std::int16_t;
 #define FILESYSTEM_EXPERIMENTAL (0)
 #define FILESYSTEM_NATIVE (0)
 
-#define HAS_CPP17 __cplusplus >= 201402L
 
 #ifdef _MSC_VER
-	#if _MSC_VER >= 1914 && HAS_CPP17
+	#if _MSC_VER >= 1914
 		#undef FILESYSTEM_NATIVE
 		#define FILESYSTEM_NATIVE (1)
 		// std::filesystem came in update 15.7
