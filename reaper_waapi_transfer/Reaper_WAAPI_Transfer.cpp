@@ -19,13 +19,17 @@
 #include "WAAPIHelpers.h"
 #include "WwiseSettingsReader.h"
 
+
+
 #define GET_FUNC_AND_CHKERROR(x) if (!((*((void **)&(x)) = (void *)rec->GetFunc(#x)))) ++funcerrcnt
 #define REGISTER_AND_CHKERROR(variable, name, info) if(!(variable = rec->Register(name, (void*)info))) ++regerrcnt
 
 //define globals
 HWND g_parentWindow;
 HINSTANCE g_hInst;
-HHOOK g_winHook = 0;
+static HHOOK g_winKbHook = 0;
+static HHOOK g_messageHook = 0;
+static UINT g_callOnUiThreadMsgId = 0;
 
 int g_Waapi_Port;
 
@@ -46,6 +50,32 @@ void StartupError(const std::string &errMsg,
     }
 }
 
+LRESULT CALLBACK WndProcMainHook(int code, WPARAM wParam, LPARAM lParam)
+{
+	if (code < 0 || !(wParam & PM_REMOVE))
+	{
+		return CallNextHookEx(nullptr, code, wParam, lParam);
+	}
+
+	MSG* msg = (MSG*)lParam;
+
+	// The Reaper API is generally not thread safe unless specified.
+	// This 'hack' allows us to call an abitrary function on the REAPER UI thread by posting a function pointer
+	// to be called on the its message loop. We then use a custom message ID and hook the message loop to execute it.
+	if (msg->message == g_callOnUiThreadMsgId)
+	{
+		((CallOnReaperFn)msg->wParam)((void*)msg->lParam);
+		return 0;
+	}
+
+	return CallNextHookEx(0, code, wParam, lParam);
+}
+
+void CallOnReaperThread(CallOnReaperFn fn, void* ctx)
+{
+	PostMessage(g_parentWindow, g_callOnUiThreadMsgId, WPARAM(fn), LPARAM(ctx));
+}
+
 extern "C"
 {
     REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(REAPER_PLUGIN_HINSTANCE hInstance, reaper_plugin_info_t *rec)
@@ -53,9 +83,11 @@ extern "C"
         //return if plugin is exiting
         if (!rec)
         {
-			UnhookWindowsHookEx(g_winHook);
+			UnhookWindowsHookEx(g_winKbHook);
+			UnhookWindowsHookEx(g_messageHook);
             return 0;
         }
+
         //set globals
         g_parentWindow = rec->hwnd_main;
         g_hInst = hInstance;
@@ -84,9 +116,11 @@ extern "C"
         GET_FUNC_AND_CHKERROR(CountProjectMarkers);
         GET_FUNC_AND_CHKERROR(ShowConsoleMsg);
 
-		g_winHook = SetWindowsHookExA(WH_KEYBOARD_LL, TransferWindow_ReaperKeyboardHook, g_hInst, 0);
+		g_winKbHook = SetWindowsHookExA(WH_KEYBOARD_LL, TransferWindow_ReaperKeyboardHook, g_hInst, 0);
+		g_callOnUiThreadMsgId = RegisterWindowMessageA("REAPER_WAAPI_TRANSFER_UICALL");
+		g_messageHook = SetWindowsHookExA(WH_GETMESSAGE, WndProcMainHook, g_hInst, GetCurrentThreadId());
 
-        //exit if any func pointer couldn't be found
+		//exit if any func pointer couldn't be found
         if (funcerrcnt)
         {
             StartupError("An error occured whilst initializing WAAPI Transfer.\n"
@@ -188,3 +222,4 @@ bool HookCommandProc(int command, int flag)
     }
     return false;
 }
+

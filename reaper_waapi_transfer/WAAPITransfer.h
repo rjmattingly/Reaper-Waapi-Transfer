@@ -16,7 +16,7 @@
 class WAAPITransfer
 {
 public:
-    WAAPITransfer(HWND window, int treeId, int statusTextid, int transferWindowId);
+    WAAPITransfer();
     ~WAAPITransfer() = default;
 
     WAAPITransfer(const WAAPITransfer&) = delete;
@@ -85,7 +85,7 @@ public:
     void UpdateRenderQueue();
     
     //sets all the selected list view items wwise parents
-    void SetSelectedRenderParents(MappedListViewID wwiseTreeItem);
+    void SetSelectedRenderParents(std::string const& wwiseObjGuid);
 
     //import as SFX, Music or dialog voice
     void SetSelectedImportObjectType(ImportObjectType type);
@@ -97,11 +97,11 @@ public:
     void SetSelectedImportOperation(WAAPIImportOperation operation);
 
     //for each selected list view item apply function accepting a mapped list view id and listview index
-    void ForEachSelectedRenderItem(std::function<void(MappedListViewID, uint32)> const& func) const;
+    void ForEachSelectedRenderItem(std::function<void(RenderItem&)> const& func) const;
 
     //Updates the Wwise parent that the render item will be imported into
     //if wwise parent is a music segment then the render items will have their import object type changed to match
-    void SetRenderItemWwiseParent(MappedListViewID mappedIndex, const std::string &wwiseParentGuid, bool isMusicSegment = false);
+    void SetRenderItemWwiseParent(RenderItem& item, const std::string &wwiseParentGuid, bool isMusicSegment = false);
 
     //used to reset render item wwise parent if user removes a wwise object from the internal list
     void RemoveRenderItemWwiseParent(RenderItemID renderId);
@@ -127,11 +127,9 @@ public:
 
     // object owns this hwnd
     HWND hwnd;
-
 	// recently entered wwise original subpaths
 	static std::unordered_set<std::string> s_originalPathHistory;
 
-private:
     //Window id's
     int m_statusTextId;
     int m_wwiseViewId;
@@ -165,12 +163,6 @@ private:
     //Socket client for Waapi connection
     AK::WwiseAuthoringAPI::Client m_client;
 
-    //Call this on window invocation to add cached wwise objects into tree view
-    void RecreateWwiseView();
-
-    //Call this on window invocation to add cached render queue objects into tree view
-    void RecreateTransferListView();
-
     //Add a wwise object to treeview and internal data structures
     MappedListViewID CreateWwiseObject(const std::string &wwiseguid, const WwiseObject &wwiseInfo);
     MappedListViewID AddWwiseObjectToView(const std::string &guid, const WwiseObject &wwiseObject);
@@ -201,4 +193,9 @@ private:
 
     //Map render queue list item (with mapped index) to the render item id
     std::unordered_map<MappedListViewID, RenderItemID> m_renderListViewMap;
+
+	bool m_connectionStatus = false;
+
+	std::string m_connectedWwiseVersion;
+	std::string m_connectedWwiseProjectName;
 };

@@ -48,29 +48,34 @@ struct WwiseObject
     std::string name;
     std::string type;
     std::string path;
+	std::string guid;
     std::unordered_set<RenderItemID> renderChildren;
 
     //Currently 'type' is just used for the icon decoration, only music segment changes
     //functionality as it dictates what object type a render child of a wwise object can be
     bool isMusicContainer;
+
+	bool isSelectedImGui = false;
 };
 
 enum class ImportObjectType
 {
+    Music,
     SFX,
-    Voice,
-    Music
+    Voice
 };
 
 enum class WAAPIImportOperation
 {
     createNew,
-    useExisting,
-    replaceExisting
+    replaceExisting,
+    useExisting
 };
 
 struct RenderItem
 {
+	RenderItemID renderItemId;
+
     fs::path projectPath;
     fs::path audioFilePath;
     std::string outputFileName;
@@ -94,6 +99,8 @@ struct RenderItem
     //optional based on flags
     std::string trackStemGuid;
     double inTime, outTime;
+
+	bool isSelectedImGui = false;
 };
 
 using RenderItemMap = std::unordered_map<RenderItemID, std::pair<RenderItem, MappedListViewID>>;

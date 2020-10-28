@@ -18,151 +18,27 @@
 
 #include "WwiseSettingsReader.h"
 
-WAAPITransfer::WAAPITransfer(HWND window, int treeId, int statusTextid, int transferWindowId)
-    : hwnd(window)
-    , m_wwiseViewId(treeId)
-    , m_statusTextId(statusTextid)
-    , m_transferWindowId(transferWindowId)
-    , m_progressWindow(0)
+WAAPITransfer::WAAPITransfer()
 {
-    Connect();
 }
 
-void WAAPITransfer::RecreateWwiseView()
+void WAAPITransfer::SetSelectedRenderParents(std::string const& wwiseObjGuid)
 {
-    auto wwiseView = GetWwiseObjectListHWND();
-    m_wwiseListViewMap.clear();
-    ListView_DeleteAllItems(wwiseView);
-    //setup columns
-    {
-        LVCOLUMN column{};
-        column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        column.fmt = LVCFMT_LEFT;
-        column.cx = 125;
-        column.iSubItem = WwiseViewSubItemID::Name;
-        column.pszText = "Name";
-        ListView_InsertColumn(wwiseView, WwiseViewSubItemID::Name, &column);
-    }
-    {
-        LVCOLUMN column{};
-        column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        column.fmt = LVCFMT_LEFT;
-        column.cx = 275;
-        column.iSubItem = WwiseViewSubItemID::Path;
-        column.pszText = "Originals Subpath";
-        ListView_InsertColumn(wwiseView, WwiseViewSubItemID::Path, &column);
-    }
-    ListView_SetExtendedListViewStyle(wwiseView, LVS_EX_FULLROWSELECT | LVS_EX_LABELTIP);
-    ListView_SetImageList(wwiseView, WwiseImageList::GetImageList(), LVSIL_SMALL);
+    bool isMusicSegment = GetWwiseObjectByGUID(wwiseObjGuid).isMusicContainer;
 
-    for (const auto &item : s_activeWwiseObjects)
-    { 
-        AddWwiseObjectToView(item.first, item.second);
-    }
-}
-
-void WAAPITransfer::RecreateTransferListView()
-{
-    ListView_DeleteAllItems(GetRenderViewHWND());
-
-    //Setup columns
-    HWND renderView = GetRenderViewHWND();
-    {
-        LVCOLUMN column{};
-        column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        column.fmt = LVCFMT_LEFT;
-        column.cx = 125;
-        column.iSubItem = RenderViewSubitemID::AudioFileName;
-        column.pszText = "File";
-        ListView_InsertColumn(renderView, RenderViewSubitemID::AudioFileName, &column);
-    }
-    {
-        LVCOLUMN column{};
-        column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        column.fmt = LVCFMT_LEFT;
-        column.cx = 100;
-        column.iSubItem = RenderViewSubitemID::WwiseParent;
-        column.pszText = "Wwise Parent";
-        ListView_InsertColumn(renderView, RenderViewSubitemID::WwiseParent, &column);
-    }
-    {
-        LVCOLUMN column{};
-        column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        column.fmt = LVCFMT_LEFT;
-        column.cx = 75;
-        column.iSubItem = RenderViewSubitemID::WwiseImportObjectType;
-        column.pszText = "Import Type";
-        ListView_InsertColumn(renderView, RenderViewSubitemID::WwiseImportObjectType, &column);
-    }
-    {
-        LVCOLUMN column{};
-        column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        column.fmt = LVCFMT_LEFT;
-        column.cx = 125;
-        column.iSubItem = RenderViewSubitemID::WwiseLanguage;
-        column.pszText = "Language (For Dialog)";
-        ListView_InsertColumn(renderView, RenderViewSubitemID::WwiseLanguage, &column);
-    }
-    {
-        LVCOLUMN column{};
-        column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        column.fmt = LVCFMT_LEFT;
-        column.cx = 100;
-        column.iSubItem = RenderViewSubitemID::WaapiImportOperation;
-        column.pszText = "Import Operation";
-        ListView_InsertColumn(renderView, RenderViewSubitemID::WaapiImportOperation, &column);
-    }
+	ForEachSelectedRenderItem([this, &wwiseObjGuid, isMusicSegment](RenderItem& item)
 	{
-		LVCOLUMN column{};
-		column.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-		column.fmt = LVCFMT_LEFT;
-		column.cx = 100;
-		column.iSubItem = RenderViewSubitemID::WwiseOriginalsSubPath;
-		column.pszText = "Originals Subpath";
-		ListView_InsertColumn(renderView, RenderViewSubitemID::WwiseOriginalsSubPath, &column);
-	}
-
-    ListView_SetExtendedListViewStyle(renderView, LVS_EX_FULLROWSELECT | LVS_EX_LABELTIP);
-
-    for (auto &renderItemPair : s_renderQueueItems)
-    {
-        //update mapped id cached in the render item
-        renderItemPair.second.second = AddRenderItemToView(renderItemPair.first, renderItemPair.second.first);
-    }
-}
-
-
-
-void WAAPITransfer::SetSelectedRenderParents(MappedListViewID wwiseId)
-{
-    assert(wwiseId != -1);
-
-    //loop selected listview items
-    auto wwiseIter = m_wwiseListViewMap.find(wwiseId);
-    assert(wwiseIter != m_wwiseListViewMap.end());
-
-    const auto &wwiseGuid = wwiseIter->second;
-
-    bool isMusicSegment = GetWwiseObjectByGUID(wwiseGuid).isMusicContainer;
-    
-    ForEachSelectedRenderItem([this, &wwiseGuid, isMusicSegment]
-    (uint32 mappedIndex, uint32 index)
-    {
-        SetRenderItemWwiseParent(mappedIndex, wwiseGuid, isMusicSegment);
-    });
+		SetRenderItemWwiseParent(item, wwiseObjGuid, isMusicSegment);
+	});
 }
 
 
 void WAAPITransfer::SetSelectedImportObjectType(ImportObjectType typeToSet)
 {
-    const std::string text = GetTextForImportObject(typeToSet);
-    char strBuff[256];
-    strcpy(strBuff, text.c_str());
     bool musicTypeMismatch = false;
 
-    ForEachSelectedRenderItem([this, &strBuff, &typeToSet, &musicTypeMismatch](MappedListViewID mappedIndex, uint32 listItem)
+	ForEachSelectedRenderItem([&musicTypeMismatch, typeToSet, this](RenderItem& renderItem)
     {
-        auto &renderItem = GetRenderItemFromListviewId(mappedIndex);
         bool isParentMusicSegment = false;
         if (!renderItem.wwiseGuid.empty())
         {
@@ -189,8 +65,7 @@ void WAAPITransfer::SetSelectedImportObjectType(ImportObjectType typeToSet)
         }
 
         renderItem.importObjectType = typeToSet;
-        ListView_SetItemText(GetRenderViewHWND(), listItem, RenderViewSubitemID::WwiseImportObjectType, strBuff);
-    });
+	});
 
     if (musicTypeMismatch)
     {
@@ -200,13 +75,9 @@ void WAAPITransfer::SetSelectedImportObjectType(ImportObjectType typeToSet)
 
 void WAAPITransfer::SetSelectedDialogLanguage(int wwiseLanguageIndex)
 {
-    char strbuff[MAX_PATH];
-    strcpy(strbuff, WwiseLanguages[wwiseLanguageIndex]);
-
-    ForEachSelectedRenderItem([wwiseLanguageIndex, &strbuff, this](MappedListViewID mapped, uint32 index) 
+    ForEachSelectedRenderItem([wwiseLanguageIndex,this](RenderItem& item) 
     {
-        GetRenderItemFromListviewId(mapped).wwiseLanguageIndex = wwiseLanguageIndex;
-        ListView_SetItemText(GetRenderViewHWND(), index, RenderViewSubitemID::WwiseLanguage, strbuff);
+		item.wwiseLanguageIndex = wwiseLanguageIndex;
     });
 }
 
@@ -273,6 +144,8 @@ bool WAAPITransfer::Connect()
 {
     using namespace AK::WwiseAuthoringAPI;
     AkJson wwiseInfo;
+	AkJson projectInfo;
+
     bool success = false;
 
     if (success = m_client.Connect("127.0.0.1", g_Waapi_Port))
@@ -286,17 +159,27 @@ bool WAAPITransfer::Connect()
             //create a status text string and set it
             std::stringstream status;
             status << "Connected on port " + std::to_string(g_Waapi_Port) + ": ";
-            status << wwiseInfo["displayName"].GetVariant().GetString();
-            status << " - " + wwiseInfo["version"]["displayName"].GetVariant().GetString();
-            SetStatusText(status.str());
+			m_connectedWwiseVersion = wwiseInfo["version"]["displayName"].GetVariant().GetString();
         }
+
+		AkJson args(AkJson::Map{
+			{"from", AkJson::Map{{
+			"ofType", AkJson::Array{
+			AkVariant("Project"),
+			} } } } });
+		AkJson options(AkJson::Map{
+			{"return", AkJson::Array{
+			AkVariant("name"),
+			} } } ); 
+		if (success &= m_client.Call(ak::wwise::core::object::get,
+									 args, options, projectInfo))
+		{
+			m_connectedWwiseProjectName = projectInfo.GetMap()["return"][0]["name"].GetVariant().GetString();
+		}
+							
     }
 
-    if (!success)
-    {
-        SetStatusText("Failed to connect to Waapi on port: " + std::to_string(g_Waapi_Port));
-    }
-
+	m_connectionStatus = success;
     return success;
 }
 
@@ -363,12 +246,12 @@ void WAAPITransfer::RunRenderQueueAndImport()
     //success, start import
     m_closeTransferThreadByUser = false;
     std::thread(&WAAPITransfer::WaapiImportLoop, this).detach();
-    OpenProgressWindow(hwnd, this);
+    //OpenProgressWindow(hwnd, this);
 }
 
 void WAAPITransfer::SetStatusText(const std::string &status) const
 {
-    SetWindowText(GetStatusTextHWND(), status.c_str());
+    //SetWindowText(GetStatusTextHWND(), status.c_str());
 }
 
 void WAAPITransfer::AddSelectedWwiseObjects()
@@ -409,7 +292,8 @@ void WAAPITransfer::AddSelectedWwiseObjects()
         wwiseNode.type = wwiseObjectType;
         wwiseNode.path = result["path"].GetVariant().GetString();
         wwiseNode.name = result["name"].GetVariant().GetString();
-        wwiseNode.isMusicContainer = IsMusicContainer(wwiseObjectType);
+		wwiseNode.guid = wwiseObjectGuid;
+		wwiseNode.isMusicContainer = IsMusicContainer(wwiseObjectType);
 
         CreateWwiseObject(wwiseObjectGuid, wwiseNode);
         ++numItemsAdded;
@@ -440,8 +324,6 @@ void WAAPITransfer::RemoveWwiseObject(MappedListViewID toRemove)
 
         s_activeWwiseObjects.erase(treeIter->second);
         m_wwiseListViewMap.erase(treeIter);
-        HWND wwiseView = GetWwiseObjectListHWND();
-        ListView_DeleteItem(wwiseView, ListView_MapIDToIndex(wwiseView, toRemove));
     }
 }
 
@@ -454,52 +336,18 @@ void WAAPITransfer::RemoveAllWwiseObjects()
     {
         RemoveRenderItemWwiseParent(it);
     }
-    ListView_DeleteAllItems(GetWwiseObjectListHWND());
-    s_activeWwiseObjects.clear();
+
+	s_activeWwiseObjects.clear();
     m_wwiseListViewMap.clear();
 }
 
-void WAAPITransfer::SetupAndRecreateWindow()
-{
-    RecreateTransferListView();
-    RecreateWwiseView();
-}
 
 
 MappedListViewID WAAPITransfer::CreateWwiseObject(const std::string &guid, const WwiseObject &wwiseInfo)
 {
     s_activeWwiseObjects.insert({ guid, wwiseInfo });
     
-    return AddWwiseObjectToView(guid, wwiseInfo);
-}
-
-MappedListViewID WAAPITransfer::AddWwiseObjectToView(const std::string &guid, const WwiseObject &wwiseObject)
-{
-    auto wwiseListview = GetWwiseObjectListHWND();
-
-    char strbuff[WWISE_NAME_MAX_LEN];
-    strcpy(strbuff, wwiseObject.name.c_str());
-
-    LVITEM item{};
-    item.mask = LVIF_TEXT | LVIF_IMAGE;
-    item.iItem = static_cast<int>(m_wwiseListViewMap.size());
-    item.iSubItem = 0;
-    item.pszText = strbuff;
-
-    //icon
-    item.iImage = WwiseImageList::GetIconForWwiseType(wwiseObject.type);
-
-    //get unique id for the list item
-    int insertedItem = ListView_InsertItem(wwiseListview, &item);
-    uint32 mappedId = ListView_MapIndexToID(wwiseListview, insertedItem);
-    m_wwiseListViewMap.insert({ mappedId, guid });
-
-    {
-        char strBuff[MAX_PATH];
-        strcpy(strBuff, wwiseObject.path.c_str());
-        ListView_SetItemText(wwiseListview, insertedItem, WwiseViewSubItemID::Path, strBuff);
-    }
-    return mappedId;
+    return 0;
 }
 
 
@@ -531,60 +379,12 @@ void WAAPITransfer::AddRenderItemsByProject(const fs::path &path)
         //get previous import type
         renderItem.importOperation = lastImportOperation;
         //add lvitem
-        renderIds.push_back(CreateRenderItem(renderItem));
+		renderItem.renderItemId = s_RenderItemIdCounter++;
+		s_renderQueueItems.insert({ renderItem.renderItemId, { renderItem, 0 } });
+        renderIds.push_back(renderItem.renderItemId);
     }
     s_renderQueueCachedProjects.insert({ path.generic_string(), renderIds });
 }
-
-RenderItemID WAAPITransfer::CreateRenderItem(const RenderItem &renderItem)
-{
-    const RenderItemID renderId = s_RenderItemIdCounter++;
-    s_renderQueueItems.insert({ renderId, { renderItem, AddRenderItemToView(renderId, renderItem) } });
-    return renderId;
-}
-
-MappedListViewID WAAPITransfer::AddRenderItemToView(RenderItemID renderId, const RenderItem &renderItem)
-{
-    char text[WWISE_NAME_MAX_LEN];
-    strcpy(text, renderItem.outputFileName.c_str());
-    LVITEM item{};
-    item.mask = LVIF_TEXT;
-    item.iItem = static_cast<int>(m_renderListViewMap.size());
-    item.iSubItem = 0;
-    item.pszText = text;
-
-    HWND dlg = GetRenderViewHWND();
-    //get unique id for the list item
-    int insertedItem = ListView_InsertItem(dlg, &item);
-    MappedListViewID mappedId = ListView_MapIndexToID(dlg, insertedItem);
-
-    {
-        const std::string importText = GetTextForImportObject(renderItem.importObjectType);
-        char strBuff[MAX_PATH];
-        strcpy(strBuff, importText.c_str());
-        ListView_SetItemText(dlg, insertedItem, RenderViewSubitemID::WwiseImportObjectType, strBuff);
-    }
-    {
-        char strBuff[MAX_PATH];
-        strcpy(strBuff, WwiseLanguages[renderItem.wwiseLanguageIndex]);
-        ListView_SetItemText(dlg, insertedItem, RenderViewSubitemID::WwiseLanguage, strBuff);
-    }
-    {
-        char strBuff[MAX_PATH];
-        strcpy(strBuff, renderItem.wwiseParentName.c_str());
-        ListView_SetItemText(dlg, insertedItem, RenderViewSubitemID::WwiseParent, strBuff);
-    }
-    {
-        const std::string importString = GetImportOperationString(renderItem.importOperation);
-        char strBuff[MAX_PATH];
-        strcpy(strBuff, importString.c_str());
-        ListView_SetItemText(dlg, insertedItem, RenderViewSubitemID::WaapiImportOperation, strBuff);
-    }
-
-    m_renderListViewMap.insert({ mappedId, renderId });
-    return mappedId;
-}
-
 
 RenderItemMap::iterator WAAPITransfer::RemoveRenderItemFromList(RenderItemMap::iterator it)
 {
@@ -595,10 +395,10 @@ RenderItemMap::iterator WAAPITransfer::RemoveRenderItemFromList(RenderItemMap::i
         GetWwiseObjectByGUID(wwiseParentGuid).renderChildren.erase(it->first);
     }
 
-    const HWND listView = GetRenderViewHWND();
-    int indexToRemove = ListView_MapIDToIndex(listView, it->second.second);
+    //const HWND listView = GetRenderViewHWND();
+    //int indexToRemove = ListView_MapIDToIndex(listView, it->second.second);
     //remove from listview 
-    ListView_DeleteItem(listView, indexToRemove);
+    //ListView_DeleteItem(listView, indexToRemove);
     //remove from listview id map
     m_renderListViewMap.erase(it->second.second);
     //remove from render queue items
@@ -630,8 +430,10 @@ void WAAPITransfer::WaapiImportLoop()
     const std::string projSourceNote(PROJ_NOTE_PREFIX + '"' + reaprojectPath + '"');
 
     //start reaper render
-    PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, 
-                TRANSFER_THREAD_WPARAM::LAUNCH_RENDER_QUEUE_REQUEST, 0);
+    //PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, 
+    //            TRANSFER_THREAD_WPARAM::LAUNCH_RENDER_QUEUE_REQUEST, 0);
+
+	CallOnReaperThread([](void*) {Main_OnCommand(41207, 1); }, nullptr);
 
     std::size_t totalRenderItems = s_renderQueueCachedProjects.size();
     uint32 numItemsProcessed = 0;
@@ -664,7 +466,7 @@ void WAAPITransfer::WaapiImportLoop()
                 if (WaapiImportByProject(iter->first, projSourceNote))
                 {
                     //inform main thread with new progress bar %                   
-                    PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, TRANSFER_THREAD_WPARAM::IMPORT_SUCCESS, progressBarStep);
+                    //PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, TRANSFER_THREAD_WPARAM::IMPORT_SUCCESS, progressBarStep);
 
                     //success, delete backup
                     fs::remove(iter->first + RENDER_QUEUE_BACKUP_APPEND);
@@ -683,7 +485,7 @@ void WAAPITransfer::WaapiImportLoop()
                 else
                 {
                     //inform main thread with new progress bar %
-                    PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, TRANSFER_THREAD_WPARAM::IMPORT_FAIL, progressBarStep);
+                    //PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, TRANSFER_THREAD_WPARAM::IMPORT_FAIL, progressBarStep);
 
                     allImportsSucceeded = false;
 
@@ -720,7 +522,7 @@ void WAAPITransfer::WaapiImportLoop()
     {
         importWparam = allImportsSucceeded ? THREAD_EXIT_SUCCESS : THREAD_EXIT_FAIL;
     }
-    PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, importWparam, 0);
+    //PostMessage(hwnd, WM_TRANSFER_THREAD_MSG, importWparam, 0);
 }
 
 bool WAAPITransfer::WaapiImportByProject(const std::string &projectPath, const std::string &RecallProjectPath)
@@ -844,43 +646,34 @@ bool WAAPITransfer::WaapiImportByProject(RenderProjectMap::iterator projectIter,
 
 void WAAPITransfer::SetSelectedImportOperation(WAAPIImportOperation operation)
 {
-    ForEachSelectedRenderItem([this, operation](uint32 mappedIndex, uint32 listItem)
+    ForEachSelectedRenderItem([this, operation](RenderItem& renderItem)
     {
-        GetRenderItemFromListviewId(mappedIndex).importOperation = operation;
-        const std::string importStr = GetImportOperationString(operation);
-        char operationStrbuff[64];
-        strcpy(operationStrbuff, importStr.c_str());
-        ListView_SetItemText(GetRenderViewHWND(), listItem, WAAPITransfer::RenderViewSubitemID::WaapiImportOperation, operationStrbuff);
+		renderItem.importOperation = operation;
     });
 }
 
-void WAAPITransfer::ForEachSelectedRenderItem(std::function<void(MappedListViewID, uint32)> const& func) const
+void WAAPITransfer::ForEachSelectedRenderItem(std::function<void(RenderItem&)> const& func) const
 {
-    HWND listView = GetRenderViewHWND();
-    LRESULT listItem = SendMessage(listView, LVM_GETNEXTITEM, -1, LVNI_SELECTED);
-    while (listItem != -1)
-    {
-        //mapped index then index
-        func(ListView_MapIndexToID(listView, listItem), (uint32)listItem);
-        listItem = SendMessage(listView, LVM_GETNEXTITEM, listItem, LVNI_SELECTED);
-    }
+	for (auto it = s_renderQueueItems.begin(); it != s_renderQueueItems.end(); ++it)
+	{
+		RenderItem& renderItem = it->second.first;
+		if (renderItem.isSelectedImGui)
+		{
+			func(renderItem);
+		}
+	}
 }
 
-void WAAPITransfer::SetRenderItemWwiseParent(MappedListViewID mappedIndex, const std::string &wwiseParentGuid, bool isMusicSegment)
+void WAAPITransfer::SetRenderItemWwiseParent(RenderItem& item, const std::string &wwiseParentGuid, bool isMusicSegment)
 {
-    const auto renderIndexPair = m_renderListViewMap.find(mappedIndex);
-    assert(renderIndexPair != m_renderListViewMap.end());
-
-    RenderItem &item = GetRenderItemFromRenderItemId(renderIndexPair->second);
-
     //remove previous render id from wwise object internal map
     if (!item.wwiseGuid.empty())
     {
-        GetWwiseObjectByGUID(item.wwiseGuid).renderChildren.erase(renderIndexPair->second);
+        GetWwiseObjectByGUID(item.wwiseGuid).renderChildren.erase(item.renderItemId);
     }
 
     auto &newWwiseParent = GetWwiseObjectByGUID(wwiseParentGuid);
-    newWwiseParent.renderChildren.insert(renderIndexPair->second);
+    newWwiseParent.renderChildren.insert(item.renderItemId);
 
     const std::string wwiseParentName = newWwiseParent.name;
     item.wwiseGuid = wwiseParentGuid;
@@ -888,17 +681,11 @@ void WAAPITransfer::SetRenderItemWwiseParent(MappedListViewID mappedIndex, const
 
     char strbuff[WWISE_NAME_MAX_LEN];
     strcpy(strbuff, wwiseParentName.c_str());
-    int listItem = ListView_MapIDToIndex(GetRenderViewHWND(), mappedIndex);
-    ListView_SetItemText(GetRenderViewHWND(), listItem, RenderViewSubitemID::WwiseParent, strbuff);
 
     //we need to change the import object type if the parent is set to a music track
     if (isMusicSegment)
     {
         item.importObjectType = ImportObjectType::Music;
-        const auto musicStr = GetTextForImportObject(ImportObjectType::Music);
-        char musicStrBuffer[256];
-        strcpy(musicStrBuffer, musicStr.c_str());
-        ListView_SetItemText(GetRenderViewHWND(), listItem, RenderViewSubitemID::WwiseImportObjectType, musicStrBuffer);
     }
     else
     {
@@ -907,10 +694,6 @@ void WAAPITransfer::SetRenderItemWwiseParent(MappedListViewID mappedIndex, const
         if (item.importObjectType == ImportObjectType::Music)
         {
             item.importObjectType = ImportObjectType::SFX;
-            const std::string sfxStr = GetTextForImportObject(ImportObjectType::SFX);
-            char sfxStrBuffer[256];
-            strcpy(sfxStrBuffer, sfxStr.c_str());
-            ListView_SetItemText(GetRenderViewHWND(), listItem, RenderViewSubitemID::WwiseImportObjectType, sfxStrBuffer);
         }
     }
 
@@ -931,8 +714,8 @@ void WAAPITransfer::RemoveRenderItemWwiseParent(RenderItemMap::iterator it)
     char *noParentStr = "Not set.";
     auto mappedIndex = it->second.second;
 
-    int listItem = ListView_MapIDToIndex(GetRenderViewHWND(), mappedIndex);
-    ListView_SetItemText(GetRenderViewHWND(), listItem, RenderViewSubitemID::WwiseParent, noParentStr);
+    //int listItem = ListView_MapIDToIndex(GetRenderViewHWND(), mappedIndex);
+    //ListView_SetItemText(GetRenderViewHWND(), listItem, RenderViewSubitemID::WwiseParent, noParentStr);
 }
 
 void WAAPITransfer::SetRenderItemOutputName(MappedListViewID mappedIndex, const std::string &newOutputName)
@@ -945,8 +728,8 @@ void WAAPITransfer::SetRenderItemOutputName(MappedListViewID mappedIndex, const 
 
     char strbuff[WWISE_NAME_MAX_LEN];
     strcpy(strbuff, newOutputName.c_str());
-    int listItem = ListView_MapIDToIndex(GetRenderViewHWND(), mappedIndex);
-    ListView_SetItemText(GetRenderViewHWND(), listItem, 1, strbuff);
+    //int listItem = ListView_MapIDToIndex(GetRenderViewHWND(), mappedIndex);
+    //ListView_SetItemText(GetRenderViewHWND(), listItem, 1, strbuff);
 }
 
 
