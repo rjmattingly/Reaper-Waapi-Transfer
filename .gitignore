@@ -7,3 +7,5 @@ resources/icons/*
 !resources/icons/.gitempty
 
 *.aps
+
+local*.py
