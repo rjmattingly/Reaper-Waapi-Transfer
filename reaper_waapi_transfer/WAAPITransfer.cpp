@@ -283,7 +283,7 @@ void WAAPITransfer::AddSelectedWwiseObjects()
 
         //check if type is valid for importing audio
         const std::string wwiseObjectType = result["type"].GetVariant().GetString();
-        if (!IsParentContainer(wwiseObjectType))
+        if (!CanBeParentContainer(wwiseObjectType))
         {
             continue;
         }

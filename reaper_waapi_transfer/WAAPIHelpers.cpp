@@ -46,7 +46,7 @@ static const std::unordered_set<std::string> s_musicTypes =
 	"MusicPlaylistContainer"
 };
 
-bool IsParentContainer(const std::string &wwiseType)
+bool CanBeParentContainer(const std::string &wwiseType)
 {
 	return s_wwiseParentTypes.find(wwiseType) != s_wwiseParentTypes.end();
 }

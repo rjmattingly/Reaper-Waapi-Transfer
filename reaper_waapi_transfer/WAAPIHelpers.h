@@ -50,7 +50,7 @@ bool WaapiImportItems(const AK::WwiseAuthoringAPI::AkJson::Array &items,
 
 
 //Check if type is usable for importing render items into
-bool IsParentContainer(const std::string &wwiseType);
+bool CanBeParentContainer(const std::string &wwiseType);
 
 // Returns if the given wwise container is a music container.
 bool IsMusicContainer(const std::string &wwiseType);
